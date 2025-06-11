@@ -1,5 +1,5 @@
 streamlit
 openai
 elevenlabs
-openai-whisper
+whisper
 ffmpeg-python
