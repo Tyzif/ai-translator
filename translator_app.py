@@ -5,7 +5,6 @@ import streamlit as st
 from openai import OpenAI
 from elevenlabs import play
 from elevenlabs.client import ElevenLabs
-from pydub import AudioSegment
 from audiorecorder import audiorecorder
 
 # === API KEYS ===
