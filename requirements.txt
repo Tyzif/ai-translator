@@ -2,7 +2,3 @@ streamlit
 openai
 elevenlabs
 whisper
-sounddevice
-scipy
-pydub
-pyaudio
