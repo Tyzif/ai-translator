@@ -6,6 +6,7 @@ from openai import OpenAI
 from elevenlabs import play
 from elevenlabs.client import ElevenLabs
 from pydub import AudioSegment
+from audiorecorder import audiorecorder
 
 # === API KEYS ===
 openai_api_key = os.getenv("OPENAI_API_KEY")
@@ -34,22 +35,20 @@ language_code_map = {
 }
 
 st.title("🌍 AI Voice Translator")
-st.caption("Upload an audio file to translate and hear it spoken in another language.")
+st.caption("Speak. Translate. Understand — in real time.")
 
-uploaded_file = st.file_uploader("🎵 Upload an audio file (.mp3 or .wav)", type=["wav", "mp3"])
 target_lang = st.selectbox("🌐 Translate to:", list(language_code_map.keys()))
 
-if uploaded_file and target_lang:
-    st.audio(uploaded_file, format='audio/wav')
+audio = audiorecorder("🎙️ Click to record", "✅ Recording complete!")
 
-    # Convert uploaded file to WAV format
-    audio = AudioSegment.from_file(uploaded_file)
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_wav:
-        audio.export(temp_wav.name, format="wav")
-        path = temp_wav.name
+if len(audio) > 0 and target_lang:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
+        temp_file.write(audio.tobytes())
+        temp_path = temp_file.name
 
+    st.audio(temp_path, format='audio/wav')
     st.write("📝 Transcribing...")
-    result = model.transcribe(path)
+    result = model.transcribe(temp_path)
     original_text = result["text"].strip()
     source_lang = result.get("language", "en")
 
@@ -69,10 +68,10 @@ if uploaded_file and target_lang:
 
     st.write("🔊 Speaking translation...")
     voice_id = voice_ids.get(target_lang.lower(), "21m00Tcm4TlvDq8ikWAM")
-    audio = tts_client.text_to_speech.convert(
+    audio_output = tts_client.text_to_speech.convert(
         voice_id=voice_id,
         model_id="eleven_multilingual_v1",
         text=translated
     )
-    play(audio)
-    st.audio(audio, format="audio/mp3")
+    play(audio_output)
+    st.audio(audio_output, format="audio/mp3")
