@@ -1,6 +1,6 @@
 streamlit
 openai
 elevenlabs
-whisper
+git+https://github.com/openai/whisper.git
 scipy
 streamlit-audiorecorder
