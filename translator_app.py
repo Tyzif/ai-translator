@@ -7,8 +7,8 @@ from elevenlabs.client import ElevenLabs
 from pydub import AudioSegment
 
 # === API KEYS ===
-openai_api_key = os.getenv("OPENAI_API_KEY")
-elevenlabs_api_key = os.getenv("ELEVENLABS_API_KEY")
+openai_api_key = st.secrets("OPENAI_API_KEY")
+elevenlabs_api_key = st.secrets("ELEVENLABS_API_KEY")
 
 client = OpenAI(api_key=openai_api_key)
 tts_client = ElevenLabs(api_key=elevenlabs_api_key)
