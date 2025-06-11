@@ -1,27 +1,22 @@
 import os
-import streamlit as st
 import tempfile
-import sounddevice as sd
-from scipy.io.wavfile import write
-import numpy as np
 import whisper
+import streamlit as st
 from openai import OpenAI
-from elevenlabs.client import ElevenLabs
 from elevenlabs import play
+from elevenlabs.client import ElevenLabs
+from pydub import AudioSegment
 
-# Set API keys
-openai_api_key = st.secrets["OPENAI_API_KEY"]
-elevenlabs_api_key = st.secrets["ELEVENLABS_API_KEY"]
-
-os.environ["OPENAI_API_KEY"] = openai_api_key
-os.environ["ELEVENLABS_API_KEY"] = elevenlabs_api_key
+# === API KEYS ===
+openai_api_key = os.getenv("OPENAI_API_KEY")
+elevenlabs_api_key = os.getenv("ELEVENLABS_API_KEY")
 
 client = OpenAI(api_key=openai_api_key)
 tts_client = ElevenLabs(api_key=elevenlabs_api_key)
 
-model = whisper.load_model("base")
+model = whisper.load_model("medium")  # More accurate model
 
-# Voice IDs
+# === LANGUAGE TO VOICE MAP ===
 voice_ids = {
     "english": "21m00Tcm4TlvDq8ikWAM",
     "spanish": "TxGEqnHWrfWFTfGW9XjX",
@@ -33,76 +28,51 @@ voice_ids = {
     "thai": "ThT5KcBeYPX3keUQqHjj"
 }
 
-lang_codes = {
+language_code_map = {
     "english": "en", "spanish": "es", "french": "fr", "german": "de",
     "italian": "it", "portuguese": "pt", "greek": "el", "thai": "th"
 }
 
-def record_audio(duration=5, fs=44100):
-    st.info("Recording... Speak now.")
-    audio = sd.rec(int(duration * fs), samplerate=fs, channels=1)
-    sd.wait()
-    st.success("Recording complete.")
-    return audio, fs
+st.title("🌍 AI Voice Translator")
+st.caption("Upload an audio file to translate and hear it spoken in another language.")
 
-def save_audio(audio, fs):
-    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
-        write(f.name, fs, (audio * 32767).astype(np.int16))
-        return f.name
+uploaded_file = st.file_uploader("🎵 Upload an audio file (.mp3 or .wav)", type=["wav", "mp3"])
+target_lang = st.selectbox("🌐 Translate to:", list(language_code_map.keys()))
 
-def transcribe_audio(path, language=None):
-    if language:
-        result = model.transcribe(path, language=language)
-    else:
-        result = model.transcribe(path)
-    return result["text"].strip(), result.get("language", "en")
+if uploaded_file and target_lang:
+    st.audio(uploaded_file, format='audio/wav')
 
-def translate_text(text, source, target):
-    system_prompt = f"You are a translator from {source} to {target}. Translate only the last sentence."
+    # Convert uploaded file to WAV format
+    audio = AudioSegment.from_file(uploaded_file)
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_wav:
+        audio.export(temp_wav.name, format="wav")
+        path = temp_wav.name
+
+    st.write("📝 Transcribing...")
+    result = model.transcribe(path)
+    original_text = result["text"].strip()
+    source_lang = result.get("language", "en")
+
+    st.success(f"🗣️ Detected ({source_lang}): {original_text}")
+
+    st.write("🌐 Translating...")
+    system_prompt = f"You are a live translator. Translate from {source_lang} to {target_lang} only."
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": text}
+            {"role": "user", "content": original_text}
         ]
     )
-    return response.choices[0].message.content.strip()
+    translated = response.choices[0].message.content.strip()
+    st.success(f"✅ Translation: {translated}")
 
-def speak_text(text, language):
-    voice_id = voice_ids.get(language, "21m00Tcm4TlvDq8ikWAM")
+    st.write("🔊 Speaking translation...")
+    voice_id = voice_ids.get(target_lang.lower(), "21m00Tcm4TlvDq8ikWAM")
     audio = tts_client.text_to_speech.convert(
         voice_id=voice_id,
         model_id="eleven_multilingual_v1",
-        text=text
+        text=translated
     )
     play(audio)
-
-# === Streamlit UI ===
-st.set_page_config(page_title="🌍 Voice Translator", layout="centered")
-st.title("🌍 AI Voice Translator")
-st.caption("Speak. Translate. Understand — in real time.")
-
-# Select languages
-col1, col2 = st.columns(2)
-with col1:
-    source_lang = st.selectbox("You are speaking:", list(voice_ids.keys()), index=0)
-with col2:
-    target_lang = st.selectbox("Translate to:", list(voice_ids.keys()), index=1)
-
-if st.button("🎙️ Record & Translate"):
-    audio, fs = record_audio()
-    path = save_audio(audio, fs)
-
-    st.write("📝 Transcribing...")
-    lang_code = lang_codes.get(source_lang)
-    original_text, _ = transcribe_audio(path, language=lang_code)
-
-    st.write("🗣️ You said:", original_text)
-
-    st.write("🌐 Translating...")
-    translated = translate_text(original_text, source_lang, target_lang)
-    st.success(f"💬 Translation: {translated}")
-
-    st.write("🔊 Speaking translation...")
-    speak_text(translated, target_lang)
-
+    st.audio(audio, format="audio/mp3")
