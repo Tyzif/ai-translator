@@ -1,6 +1,6 @@
 import os
 import tempfile
-import whisper
+from faster_whisper import WhisperModel
 import streamlit as st
 from openai import OpenAI
 from elevenlabs import play
@@ -14,7 +14,11 @@ elevenlabs_api_key = os.getenv("ELEVENLABS_API_KEY")
 client = OpenAI(api_key=openai_api_key)
 tts_client = ElevenLabs(api_key=elevenlabs_api_key)
 
-model = whisper.load_model("medium")  # More accurate model
+model = WhisperModel("medium", device="cpu", compute_type="int8")
+segments, info = model.transcribe(path, beam_size=5)
+original_text = " ".join([seg.text for seg in segments])
+source_lang = info.language or "en"
+
 
 # === LANGUAGE TO VOICE MAP ===
 voice_ids = {
