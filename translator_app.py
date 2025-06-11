@@ -3,16 +3,18 @@ import tempfile
 import whisper
 import streamlit as st
 from openai import OpenAI
+from elevenlabs import play
 from elevenlabs.client import ElevenLabs
-from pydub import AudioSegment
+import ffmpeg
 
 # === API KEYS ===
-openai_api_key = st.secrets("OPENAI_API_KEY")
-elevenlabs_api_key = st.secrets("ELEVENLABS_API_KEY")
+openai_api_key = os.getenv("OPENAI_API_KEY")
+elevenlabs_api_key = os.getenv("ELEVENLABS_API_KEY")
 
 client = OpenAI(api_key=openai_api_key)
 tts_client = ElevenLabs(api_key=elevenlabs_api_key)
-model = whisper.load_model("medium")
+
+model = whisper.load_model("medium")  # More accurate model
 
 # === LANGUAGE TO VOICE MAP ===
 voice_ids = {
@@ -40,11 +42,15 @@ target_lang = st.selectbox("🌐 Translate to:", list(language_code_map.keys()))
 if uploaded_file and target_lang:
     st.audio(uploaded_file, format='audio/wav')
 
-    # Convert uploaded file to WAV
-    audio = AudioSegment.from_file(uploaded_file)
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_wav:
-        audio.export(temp_wav.name, format="wav")
-        path = temp_wav.name
+    # Save and convert uploaded file to WAV format
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_input:
+        temp_input.write(uploaded_file.read())
+        temp_input.flush()
+        input_path = temp_input.name
+
+    output_path = tempfile.NamedTemporaryFile(delete=False, suffix=".wav").name
+    ffmpeg.input(input_path).output(output_path, format='wav').run(overwrite_output=True)
+    path = output_path
 
     st.write("📝 Transcribing...")
     result = model.transcribe(path)
@@ -72,4 +78,5 @@ if uploaded_file and target_lang:
         model_id="eleven_multilingual_v1",
         text=translated
     )
+    play(audio)
     st.audio(audio, format="audio/mp3")
