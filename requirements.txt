@@ -1,6 +1,7 @@
+ffmpeg
+git+https://github.com/openai/whisper.git
 streamlit
 openai
 elevenlabs
-git+https://github.com/openai/whisper.git
-scipy
-streamlit-audiorecorder
+pydub
+audiorecorder
