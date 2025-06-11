@@ -15,10 +15,6 @@ client = OpenAI(api_key=openai_api_key)
 tts_client = ElevenLabs(api_key=elevenlabs_api_key)
 
 model = WhisperModel("medium", device="cpu", compute_type="int8")
-segments, info = model.transcribe(path, beam_size=5)
-original_text = " ".join([seg.text for seg in segments])
-source_lang = info.language or "en"
-
 
 # === LANGUAGE TO VOICE MAP ===
 voice_ids = {
@@ -46,7 +42,6 @@ target_lang = st.selectbox("🌐 Translate to:", list(language_code_map.keys()))
 if uploaded_file and target_lang:
     st.audio(uploaded_file, format='audio/wav')
 
-    # Save and convert uploaded file to WAV format
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_input:
         temp_input.write(uploaded_file.read())
         temp_input.flush()
@@ -57,9 +52,9 @@ if uploaded_file and target_lang:
     path = output_path
 
     st.write("📝 Transcribing...")
-    result = model.transcribe(path)
-    original_text = result["text"].strip()
-    source_lang = result.get("language", "en")
+    segments, info = model.transcribe(path, beam_size=5)
+    original_text = " ".join([seg.text for seg in segments])
+    source_lang = info.language or "en"
 
     st.success(f"🗣️ Detected ({source_lang}): {original_text}")
 
