@@ -5,7 +5,6 @@ import streamlit as st
 from openai import OpenAI
 from elevenlabs import play
 from elevenlabs.client import ElevenLabs
-from audiorecorder import audiorecorder
 
 # === API KEYS ===
 openai_api_key = os.getenv("OPENAI_API_KEY")
@@ -33,21 +32,22 @@ language_code_map = {
     "italian": "it", "portuguese": "pt", "greek": "el", "thai": "th"
 }
 
+# === UI ===
 st.title("🌍 AI Voice Translator")
-st.caption("Speak. Translate. Understand — in real time.")
+st.caption("Upload a .wav file to translate and hear it spoken in another language.")
 
+uploaded_file = st.file_uploader("🎵 Upload a .wav audio file", type=["wav"])
 target_lang = st.selectbox("🌐 Translate to:", list(language_code_map.keys()))
 
-audio = audiorecorder("🎙️ Click to record", "✅ Recording complete!")
+if uploaded_file and target_lang:
+    st.audio(uploaded_file, format='audio/wav')
 
-if len(audio) > 0 and target_lang:
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
-        temp_file.write(audio.tobytes())
-        temp_path = temp_file.name
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_wav:
+        temp_wav.write(uploaded_file.read())
+        path = temp_wav.name
 
-    st.audio(temp_path, format='audio/wav')
     st.write("📝 Transcribing...")
-    result = model.transcribe(temp_path)
+    result = model.transcribe(path)
     original_text = result["text"].strip()
     source_lang = result.get("language", "en")
 
@@ -67,10 +67,10 @@ if len(audio) > 0 and target_lang:
 
     st.write("🔊 Speaking translation...")
     voice_id = voice_ids.get(target_lang.lower(), "21m00Tcm4TlvDq8ikWAM")
-    audio_output = tts_client.text_to_speech.convert(
+    audio = tts_client.text_to_speech.convert(
         voice_id=voice_id,
         model_id="eleven_multilingual_v1",
         text=translated
     )
-    play(audio_output)
-    st.audio(audio_output, format="audio/mp3")
+    play(audio)
+    st.audio(audio, format="audio/mp3")
