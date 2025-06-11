@@ -4,3 +4,4 @@ elevenlabs
 whisper
 sounddevice
 scipy
+pydub
